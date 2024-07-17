@@ -1,8 +1,10 @@
 import ShortcutKey from "@/components/ShortcutKey";
 import { Card, Flex, Switch } from "antd";
 import { useSnapshot } from "valtio";
-import Capacity from "./components/Capacity";
+import DefaultFocus from "./components/DefaultFocus";
 import DoubleClickFeedback from "./components/DoubleClickFeedback";
+import HistoryCapacity from "./components/HistoryCapacity";
+import SearchPosition from "./components/SearchPosition";
 import WindowPosition from "./components/WindowPosition";
 
 const Clipboard = () => {
@@ -32,13 +34,17 @@ const Clipboard = () => {
 						/>
 					</Flex>
 
+					<SearchPosition />
+
+					<DefaultFocus />
+
 					<DoubleClickFeedback />
 
 					<WindowPosition />
 				</Flex>
 			</Card>
 
-			<Capacity />
+			<HistoryCapacity />
 		</Flex>
 	);
 };

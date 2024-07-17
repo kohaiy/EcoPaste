@@ -1,10 +1,10 @@
 import type { HistoryItem } from "@/types/database";
-import { Flex } from "antd";
+import { Flex, Typography } from "antd";
 import clsx from "clsx";
 import type { CSSProperties, FC } from "react";
 
 const Text: FC<HistoryItem> = (props) => {
-	const { value = "" } = props;
+	const { value } = props;
 
 	const renderColor = () => {
 		const className = "absolute rounded-full";
@@ -36,7 +36,11 @@ const Text: FC<HistoryItem> = (props) => {
 		return value;
 	};
 
-	return <div className="line-clamp-4">{renderContent()}</div>;
+	return (
+		<Typography.Paragraph ellipsis={{ rows: 4 }} className="leading-unset">
+			{renderContent()}
+		</Typography.Paragraph>
+	);
 };
 
 export default memo(Text);

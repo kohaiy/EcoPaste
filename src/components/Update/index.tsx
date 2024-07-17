@@ -6,10 +6,13 @@ import {
 	onUpdaterEvent,
 	checkUpdate as tauriCheckUpdate,
 } from "@tauri-apps/api/updater";
-import { Flex, Modal, Typography, message } from "antd";
+import type { Timeout } from "ahooks/lib/useRequest/src/types";
+import { Flex, Modal, message } from "antd";
+import clsx from "clsx";
 import Markdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import { useSnapshot } from "valtio";
+import styles from "./index.module.scss";
 
 interface State {
 	open?: boolean;
@@ -18,9 +21,10 @@ interface State {
 }
 
 const MESSAGE_KEY = "updatable";
+let timer: Timeout;
 
 const Update = () => {
-	const { appInfo } = useSnapshot(globalStore);
+	const { appInfo, autoUpdate } = useSnapshot(globalStore);
 
 	const state = useReactive<State>({});
 
@@ -39,9 +43,15 @@ const Update = () => {
 		});
 	});
 
-	useInterval(() => checkUpdate(), 1000 * 60 * 60 * 24, {
-		immediate: true,
-	});
+	useEffect(() => {
+		clearInterval(timer);
+
+		if (autoUpdate) {
+			checkUpdate();
+
+			timer = setInterval(checkUpdate, 1000 * 60 * 60 * 24);
+		}
+	}, [autoUpdate]);
 
 	const updateTime = useCreation(() => {
 		const date = state.manifest?.date?.split(" ")?.slice(0, 2)?.join(" ");
@@ -53,10 +63,12 @@ const Update = () => {
 		try {
 			const { shouldUpdate, manifest } = await tauriCheckUpdate();
 
-			if (shouldUpdate) {
+			if (shouldUpdate && manifest) {
 				showWindow();
 
 				messageApi.destroy(MESSAGE_KEY);
+
+				manifest.body = replaceManifestBody(manifest.body);
 
 				Object.assign(state, { manifest, open: true });
 			} else if (showMessage) {
@@ -75,6 +87,22 @@ const Update = () => {
 				content: "检查更新时出错，请检查网络并重试。",
 			});
 		}
+	};
+
+	const replaceManifestBody = (body: string) => {
+		return (
+			body
+				// 替换贡献者名称
+				.replace(
+					/(-.*?by.*?)@([^ ]+)/g,
+					"$1<a href='https://github.com/$2'><mark>@$2</mark></a>",
+				)
+				// 替换 pr 链接
+				.replace(
+					new RegExp(`(${GITHUB_ISSUES_LINK}/)(\\d+)`, "g"),
+					"[#$2]($1$2)",
+				)
+		);
 	};
 
 	const handleOk = async () => {
@@ -130,6 +158,7 @@ const Update = () => {
 				title="发现新版本🥳"
 				okText="立即更新"
 				cancelText="以后再说"
+				className={styles.modal}
 				confirmLoading={state.loading}
 				onOk={handleOk}
 				onCancel={handleCancel}
@@ -139,7 +168,9 @@ const Update = () => {
 						更新版本：
 						<span>
 							v{appInfo?.version} 👉{" "}
-							<span className="text-primary">v{state.manifest?.version}</span>
+							<a href={`${GITHUB_LINK}/releases/latest`}>
+								v{state.manifest?.version}
+							</a>
 						</span>
 					</Flex>
 
@@ -151,23 +182,8 @@ const Update = () => {
 					<Flex vertical>
 						更新日志：
 						<Markdown
-							className="revert-all max-h-220 overflow-auto"
+							className={clsx(styles.markdown, "max-h-220 overflow-auto")}
 							rehypePlugins={[rehypeRaw]}
-							components={{
-								a: (props) => {
-									const { href, children } = props;
-
-									return (
-										<Typography.Link
-											href={href}
-											target="_blank"
-											rel="noreferrer"
-										>
-											{children}
-										</Typography.Link>
-									);
-								},
-							}}
 						>
 							{state.manifest?.body}
 						</Markdown>

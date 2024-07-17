@@ -83,15 +83,18 @@ export const readFiles = async (): Promise<ClipboardPayload> => {
  * 读取剪切板图片
  */
 export const readImage = async (): Promise<ClipboardPayload> => {
+	const { saveImageDir } = clipboardStore;
+
 	const { image, ...rest } = await invoke<ReadImage>(
 		CLIPBOARD_PLUGIN.READ_IMAGE,
+		{ dir: saveImageDir },
 	);
 
 	const { size } = await metadata(image);
 
 	let search = await systemOCR(image);
 
-	if (await isWin()) {
+	if (isWin()) {
 		const { content, qr } = JSON.parse(search) as WinOCR;
 
 		if (isEmpty(qr)) {
@@ -101,11 +104,13 @@ export const readImage = async (): Promise<ClipboardPayload> => {
 		}
 	}
 
+	const value = image.replace(saveImageDir, "");
+
 	return {
 		...rest,
 		size,
 		search,
-		value: image,
+		value,
 	};
 };
 

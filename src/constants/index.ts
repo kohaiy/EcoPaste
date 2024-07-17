@@ -1,5 +1,7 @@
 export const GITHUB_LINK = "https://github.com/ayangweb/EcoPaste";
 
+export const GITHUB_ISSUES_LINK = "https://github.com/ayangweb/EcoPaste/issues";
+
 export const LISTEN_KEY = {
 	ABOUT: "about",
 	GITHUB: "github",
@@ -7,6 +9,8 @@ export const LISTEN_KEY = {
 	CLIPBOARD_STORE_CHANGED: "clipboard-store-changed",
 	CLEAR_HISTORY: "clear-history",
 	UPDATE: "update",
+	TRAY_CLICK: "tray-click",
+	IMPORT_DATA: "import-data",
 };
 
 export const WINDOW_PLUGIN = {
@@ -17,8 +21,7 @@ export const WINDOW_PLUGIN = {
 
 export const FS_EXTRA_PLUGIN = {
 	METADATA: "plugin:fs-extra|metadata",
-	GET_IMAGE_BASE64: "plugin:fs-extra|get_image_base64",
-	PREVIEW_FILE: "plugin:fs-extra|preview_file",
+	PREVIEW_PATH: "plugin:fs-extra|preview_path",
 };
 
 export const CLIPBOARD_PLUGIN = {
@@ -49,3 +52,15 @@ export const MOUSE_PLUGIN = {
 export const OCR_PLUGIN = {
 	SYSTEM_OCR: "plugin:ocr|system_ocr",
 };
+
+export const THEME_PLUGIN = {
+	GET_THEME: "plugin:theme|get_theme",
+	SET_THEME: "plugin:theme|set_theme",
+};
+
+export const BACKUP_PLUGIN = {
+	EXPORT_DATA: "plugin:backup|export_data",
+	IMPORT_DATA: "plugin:backup|import_data",
+};
+
+export const STORE_FILE_NAME = "store";

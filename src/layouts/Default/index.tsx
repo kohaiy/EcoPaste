@@ -4,20 +4,16 @@ import { emit, listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/api/shell";
 import { Flex } from "antd";
 import clsx from "clsx";
+import { disable, enable, isEnabled } from "tauri-plugin-autostart-api";
 import { subscribe, useSnapshot } from "valtio";
 
 const DefaultLayout = () => {
 	const { pathname } = useLocation();
 	const navigate = useNavigate();
-	const { isDark, wakeUpKey } = useSnapshot(globalStore);
-
-	const [sidebarClassName, setSidebarClassName] = useState("pt-48");
+	const { wakeUpKey, autoStart } = useSnapshot(globalStore);
+	const { isDark, toggleTheme } = useTheme();
 
 	useMount(async () => {
-		if (await isWin()) {
-			setSidebarClassName("pt-32");
-		}
-
 		createWindow("/clipboard-history");
 
 		listen(LISTEN_KEY.GITHUB, () => {
@@ -30,6 +26,12 @@ const DefaultLayout = () => {
 			navigate("/about");
 		});
 
+		listen(LISTEN_KEY.TRAY_CLICK, () => {
+			if (isMac() || globalStore.trayClick === "none") return;
+
+			showWindow();
+		});
+
 		subscribe(globalStore, () => {
 			emit(LISTEN_KEY.GLOBAL_STORE_CHANGED, globalStore);
 		});
@@ -38,6 +40,16 @@ const DefaultLayout = () => {
 			emit(LISTEN_KEY.CLIPBOARD_STORE_CHANGED, clipboardStore);
 		});
 	});
+
+	useAsyncEffect(async () => {
+		const enabled = await isEnabled();
+
+		if (autoStart && !enabled) {
+			enable();
+		} else if (enabled) {
+			disable();
+		}
+	}, [autoStart]);
 
 	useRegister(toggleWindowVisible, [wakeUpKey]);
 
@@ -48,12 +60,11 @@ const DefaultLayout = () => {
 				vertical
 				align="center"
 				justify="space-between"
-				className={clsx(
-					"color-2 h-full w-90 bg-2 pb-32 transition",
-					sidebarClassName,
-				)}
+				className={clsx("color-2 h-full w-90 bg-2 pb-32 transition", [
+					isWin() ? "pt-32" : "pt-48",
+				])}
 			>
-				<Flex vertical gap="large">
+				<Flex vertical gap="large" onClick={(event) => event.stopPropagation()}>
 					{routes[0].children?.map((item) => {
 						const { path, meta = {} } = item;
 
@@ -79,7 +90,7 @@ const DefaultLayout = () => {
 					hoverable
 					size={24}
 					name={isDark ? "i-iconamoon:mode-light" : "i-iconamoon:mode-dark"}
-					onMouseDown={() => toggleTheme(isDark ? "light" : "dark")}
+					onMouseDown={() => toggleTheme()}
 				/>
 			</Flex>
 

@@ -1,6 +1,6 @@
-import type { GlobalStore, Theme } from "@/types/store";
+import type { GlobalStore } from "@/types/store";
 import { getName, getVersion } from "@tauri-apps/api/app";
-import { appWindow } from "@tauri-apps/api/window";
+import { type } from "@tauri-apps/api/os";
 import proxyWithPersist, {
 	PersistStrategy,
 	type ProxyPersistStorageEngine,
@@ -19,8 +19,10 @@ export const persistStrategies = PersistStrategy.MultiFile;
 export const globalStore = proxyWithPersist<GlobalStore>({
 	name: "global",
 	initialState: {
+		theme: "auto",
 		autoStart: false,
 		wakeUpKey: "Alt+X",
+		trayClick: "none",
 	},
 	persistStrategies,
 	version: 0,
@@ -36,23 +38,5 @@ subscribeKey(globalStore._persist, "loaded", async (loaded) => {
 		version: await getVersion(),
 	};
 
-	globalStore.theme ??= "auto";
-});
-
-subscribeKey(globalStore, "theme", async (value = "auto") => {
-	let theme: Theme = value;
-
-	if (theme === "auto") {
-		theme = (await appWindow.theme()) ?? "light";
-	}
-
-	globalStore.isDark = theme === "dark";
-});
-
-subscribeKey(globalStore, "isDark", (value) => {
-	if (value) {
-		document.documentElement.classList.add("dark");
-	} else {
-		document.documentElement.classList.remove("dark");
-	}
+	globalStore.platform = await type();
 });

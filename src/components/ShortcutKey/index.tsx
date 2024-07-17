@@ -1,8 +1,9 @@
 import { Flex } from "antd";
-import { isEqual } from "arcdash";
+import { isEmpty, isEqual } from "arcdash";
 import clsx from "clsx";
 import { find, intersectionWith, map, remove, some } from "lodash-es";
-import type { FC, KeyboardEvent } from "react";
+import type { FC, KeyboardEvent, MouseEvent } from "react";
+import Icon from "../Icon";
 import { type Key, keys, modifierKeys, normalKeys } from "./keys";
 
 interface ShortcutKeyProps {
@@ -18,6 +19,8 @@ const ShortcutKey: FC<ShortcutKeyProps> = (props) => {
 	const { defaultValue = "", onChange } = props;
 
 	const handleDefaultValue = () => {
+		if (!defaultValue) return [];
+
 		return defaultValue.split("+").map((shortcut) => find(keys, { shortcut })!);
 	};
 
@@ -27,19 +30,22 @@ const ShortcutKey: FC<ShortcutKeyProps> = (props) => {
 		value: handleDefaultValue(),
 	});
 
-	const handleFocus = () => {
-		state.value = [];
-	};
+	const isHovering = useHover(containerRef);
 
-	const handleBlur = () => {
-		if (!registrable()) {
-			state.value = handleDefaultValue();
-		}
+	const isFocusing = useFocusWithin(containerRef, {
+		onFocus: () => {
+			state.value = [];
+		},
+		onBlur: () => {
+			if (!registrable()) {
+				state.value = handleDefaultValue();
+			}
 
-		const changeValue = map(state.value, "shortcut").join("+");
+			const changeValue = map(state.value, "shortcut").join("+");
 
-		onChange?.(changeValue);
-	};
+			onChange?.(changeValue);
+		},
+	});
 
 	const handleKeyDown = (event: KeyboardEvent) => {
 		const key = getEventKey(event);
@@ -86,38 +92,74 @@ const ShortcutKey: FC<ShortcutKeyProps> = (props) => {
 
 	const registrable = () => hasModifierKey() && getNormalKey();
 
+	const handleClear = (event: MouseEvent) => {
+		event.preventDefault();
+
+		state.value = [];
+
+		onChange?.("");
+	};
+
+	const renderContent = () => {
+		if (isMac()) {
+			return (
+				<Flex gap="small" className="font-bold text-16">
+					<Flex gap={4}>
+						{modifierKeys.map((item) => {
+							const { key, macosSymbol } = item;
+
+							return (
+								<span
+									key={key}
+									className={clsx("transition", {
+										"color-primary": some(state.value, { key }),
+									})}
+								>
+									{macosSymbol}
+								</span>
+							);
+						})}
+					</Flex>
+
+					{getNormalKey() && (
+						<span className="color-primary">{getNormalKey().symbol}</span>
+					)}
+				</Flex>
+			);
+		}
+
+		return (
+			<div className="font-500 text-14">
+				{isFocusing && isEmpty(state.value) ? (
+					<span className="font-normal text-primary">按键盘设置快捷键</span>
+				) : isEmpty(state.value) ? (
+					"未设置快捷键"
+				) : (
+					map(state.value, "symbol").join(" + ")
+				)}
+			</div>
+		);
+	};
+
 	return (
 		<Flex
 			ref={containerRef}
 			tabIndex={0}
 			align="center"
 			gap="small"
-			className="antd-input b-color-1 color-3 h-32 w-fit rounded-6 px-10 font-bold text-16"
-			onFocus={handleFocus}
-			onBlur={handleBlur}
+			className="antd-input group b-color-1 color-3 h-32 rounded-6 px-10"
 			onKeyDown={handleKeyDown}
 			onKeyUp={handleKeyUp}
 		>
-			<Flex gap={4}>
-				{modifierKeys.map((item) => {
-					const { key, symbol } = item;
+			{renderContent()}
 
-					return (
-						<span
-							key={key}
-							className={clsx("transition", {
-								"color-primary": some(state.value, { key }),
-							})}
-						>
-							{symbol}
-						</span>
-					);
-				})}
-			</Flex>
-
-			{getNormalKey() && (
-				<span className="color-primary">{getNormalKey().symbol}</span>
-			)}
+			<Icon
+				hoverable
+				size={16}
+				name="i-iconamoon:close-circle-1"
+				hidden={isFocusing || !isHovering || isEmpty(state.value)}
+				onMouseDown={handleClear}
+			/>
 		</Flex>
 	);
 };

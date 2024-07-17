@@ -1,22 +1,27 @@
 import copyAudio from "@/assets/audio/copy.mp3";
-import type { HistoryItem } from "@/types/database";
+import type { HistoryItem, TablePayload } from "@/types/database";
 import { listen } from "@tauri-apps/api/event";
 import {
 	PhysicalPosition,
 	appWindow,
 	availableMonitors,
 } from "@tauri-apps/api/window";
+import { Flex } from "antd";
 import clsx from "clsx";
 import { createContext } from "react";
 import { useSnapshot } from "valtio";
 import Header from "./components/Header";
 import List from "./components/List";
+import Search from "./components/Search";
 
-interface State extends HistoryItem {
+interface State extends TablePayload {
+	rounded: boolean;
 	historyList: HistoryItem[];
+	scrollTo?: (index: number) => void;
 }
 
 const INITIAL_STATE: State = {
+	rounded: true,
 	historyList: [],
 };
 
@@ -30,14 +35,16 @@ export const HistoryContext = createContext<HistoryContextValue>({
 });
 
 const ClipboardHistory = () => {
-	const { wakeUpKey } = useSnapshot(clipboardStore);
+	const { wakeUpKey, searchPosition } = useSnapshot(clipboardStore);
 
 	const audioRef = useRef<HTMLAudioElement>(null);
 
 	const state = useReactive<State>(INITIAL_STATE);
 
 	useMount(async () => {
-		await initDatabase();
+		if (await isWin10()) {
+			state.rounded = false;
+		}
 
 		startListen();
 
@@ -82,6 +89,12 @@ const ClipboardHistory = () => {
 
 			getHistoryList();
 		});
+
+		listen(LISTEN_KEY.IMPORT_DATA, async () => {
+			await initDatabase();
+
+			getHistoryList();
+		});
 	});
 
 	useRegister(async () => {
@@ -97,8 +110,6 @@ const ClipboardHistory = () => {
 				const { width, height } = await appWindow.innerSize();
 				let [x, y] = await getMouseCoords();
 
-				const isWindows = await isWin();
-
 				for (const {
 					scaleFactor,
 					position: { x: posX, y: posY },
@@ -113,7 +124,7 @@ const ClipboardHistory = () => {
 						continue;
 					}
 
-					const factor = isWindows ? 1 : scaleFactor;
+					const factor = isWin() ? 1 : scaleFactor;
 					x = Math.min(x * factor, posX + screenWidth - width);
 					y = Math.min(y * factor, posY + screenHeight - height);
 				}
@@ -128,6 +139,10 @@ const ClipboardHistory = () => {
 	}, [wakeUpKey]);
 
 	useEffect(() => {
+		state.scrollTo?.(0);
+
+		clipboardStore.activeIndex = 0;
+
 		getHistoryList?.();
 	}, [state.search, state.group, state.isCollected]);
 
@@ -141,37 +156,66 @@ const ClipboardHistory = () => {
 			isCollected,
 		});
 
+		// TODO: 为了适配导出功能，把旧图片路径替换为文件名，此代码只执行一次，将在以后的版本中移除此段代码
+		if (!clipboardStore.replaceAllImagePath) {
+			const { saveImageDir } = clipboardStore;
+
+			for (const item of list) {
+				const { id, type, value } = item;
+
+				if (type !== "image" || !value?.includes(saveImageDir)) continue;
+
+				item.value = value.replace(saveImageDir, "");
+
+				updateSQL("history", {
+					id,
+					value: item.value,
+				});
+			}
+
+			clipboardStore.replaceAllImagePath = true;
+		}
+
 		state.historyList = list;
 
-		if (!clipboardStore.capacity) return;
+		if (!clipboardStore.historyCapacity) return;
 
 		for (const item of list) {
 			const { id, createTime } = item;
 
-			if (dayjs().diff(createTime, "days") >= clipboardStore.capacity) {
+			if (dayjs().diff(createTime, "days") >= clipboardStore.historyCapacity) {
 				deleteSQL("history", id);
 			}
 		}
 	};
 
 	return (
-		<div
-			data-tauri-drag-region
-			className={clsx("h-screen rounded-10 bg-1 py-12")}
+		<HistoryContext.Provider
+			value={{
+				state,
+				getHistoryList,
+			}}
 		>
-			<audio ref={audioRef} src={copyAudio} />
-
-			<HistoryContext.Provider
-				value={{
-					state,
-					getHistoryList,
-				}}
+			<Flex
+				data-tauri-drag-region
+				vertical
+				gap={12}
+				className={clsx("h-screen bg-1 py-12", {
+					"rounded-10": state.rounded,
+					"flex-col-reverse": searchPosition === "bottom",
+				})}
 			>
-				<Header />
+				<audio ref={audioRef} src={copyAudio} />
 
-				<List />
-			</HistoryContext.Provider>
-		</div>
+				<Search />
+
+				<Flex data-tauri-drag-region vertical gap={12}>
+					<Header />
+
+					<List />
+				</Flex>
+			</Flex>
+		</HistoryContext.Provider>
 	);
 };
 

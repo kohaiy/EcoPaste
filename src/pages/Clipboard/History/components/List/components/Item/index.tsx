@@ -24,15 +24,7 @@ interface MenuItem extends ContextMenu.Item {
 
 const Item: FC<ItemProps> = (props) => {
 	const { index, data } = props;
-	const {
-		id,
-		type,
-		group,
-		value = "",
-		search = "",
-		createTime = "",
-		isCollected,
-	} = data;
+	const { id, type, group, value, search, createTime, isCollected } = data;
 
 	const { state, getHistoryList } = useContext(HistoryContext);
 	const { appInfo } = useSnapshot(globalStore);
@@ -48,7 +40,7 @@ const Item: FC<ItemProps> = (props) => {
 		}
 	}, [activeIndex]);
 
-	const copy = () => {
+	const copy = async () => {
 		switch (type) {
 			case "text":
 				return writeText(value);
@@ -91,8 +83,8 @@ const Item: FC<ItemProps> = (props) => {
 		});
 	};
 
-	const previewImage = () => {
-		previewFile(value, false);
+	const previewImage = async () => {
+		previewPath(value, false);
 	};
 
 	const downloadImage = async () => {
@@ -104,7 +96,7 @@ const Item: FC<ItemProps> = (props) => {
 	const openFinder = () => {
 		const [file] = JSON.parse(value);
 
-		previewFile(file);
+		previewPath(file);
 	};
 
 	const deleteItem = async () => {
@@ -114,39 +106,35 @@ const Item: FC<ItemProps> = (props) => {
 	};
 
 	const deleteAbove = async () => {
-		const aboveData = state.historyList.filter((item) => {
-			const isMore = item.createTime! > createTime;
+		const list = state.historyList.filter((item) => {
+			const isMore = item.createTime > createTime;
 			const isDifferent = item.createTime === createTime && item.id !== id;
 
 			return isMore || isDifferent;
 		});
 
-		for await (const item of aboveData) {
-			await deleteSQL("history", item.id);
-		}
-
-		getHistoryList?.();
+		deleteAll(list);
 	};
 
 	const deleteBelow = async () => {
-		const belowData = state.historyList.filter((item) => {
-			const isLess = item.createTime! < createTime;
+		const list = state.historyList.filter((item) => {
+			const isLess = item.createTime < createTime;
 			const isDifferent = item.createTime === createTime && item.id !== id;
 
 			return isLess || isDifferent;
 		});
 
-		for await (const item of belowData) {
-			await deleteSQL("history", item.id);
-		}
-
-		getHistoryList?.();
+		deleteAll(list);
 	};
 
 	const deleteOther = async () => {
-		const otherData = state.historyList.filter((item) => item.id !== id);
+		const list = state.historyList.filter((item) => item.id !== id);
 
-		for await (const item of otherData) {
+		deleteAll(list);
+	};
+
+	const deleteAll = async (list: HistoryItem[]) => {
+		for await (const item of list) {
 			await deleteSQL("history", item.id);
 		}
 
@@ -201,7 +189,7 @@ const Item: FC<ItemProps> = (props) => {
 				event: downloadImage,
 			},
 			{
-				label: (await isMac()) ? "在 Finder 中显示" : "在文件资源管理器中显示",
+				label: isMac() ? "在 Finder 中显示" : "在文件资源管理器中显示",
 				hide: type !== "files",
 				event: openFinder,
 			},
@@ -224,6 +212,11 @@ const Item: FC<ItemProps> = (props) => {
 				hide: state.historyList.length === 1,
 				event: deleteOther,
 			},
+			{
+				label: "删除所有",
+				hide: state.historyList.length === 1,
+				event: () => deleteAll(state.historyList),
+			},
 		];
 
 		showMenu({ items: menus.filter(({ hide }) => !hide) });
@@ -239,6 +232,10 @@ const Item: FC<ItemProps> = (props) => {
 
 	const handleFocus = () => {
 		clipboardStore.activeIndex = index;
+	};
+
+	const handleBlur = () => {
+		clipboardStore.activeIndex = -1;
 	};
 
 	const handleKeyDown = (event: KeyboardEvent) => {
@@ -288,6 +285,7 @@ const Item: FC<ItemProps> = (props) => {
 			onContextMenu={handleContextMenu}
 			onDoubleClick={handleDoubleClick}
 			onFocus={handleFocus}
+			onBlur={handleBlur}
 			onKeyDown={handleKeyDown}
 		>
 			<Header {...data} copy={copy} collect={collect} deleteItem={deleteItem} />

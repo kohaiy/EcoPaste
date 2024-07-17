@@ -17,7 +17,6 @@ use tauri::{
 
 struct ClipboardManager {
     context: ClipboardContext,
-    save_image_path: PathBuf,
     watcher_shutdown: Arc<Mutex<Option<WatcherShutdown>>>,
 }
 
@@ -29,7 +28,6 @@ impl ClipboardManager {
     fn new() -> Self {
         ClipboardManager {
             context: ClipboardContext::new().unwrap(),
-            save_image_path: PathBuf::new(),
             watcher_shutdown: Arc::default(),
         }
     }
@@ -134,7 +132,9 @@ async fn read_files(manager: State<'_, ClipboardManager>) -> Result<Vec<String>>
 }
 
 #[command]
-async fn read_image(manager: State<'_, ClipboardManager>) -> Result<ReadImage> {
+async fn read_image(manager: State<'_, ClipboardManager>, dir: PathBuf) -> Result<ReadImage> {
+    create_dir_all(&dir).unwrap();
+
     let image = manager.context.get_image().unwrap();
 
     let (width, height) = image.get_size();
@@ -149,9 +149,9 @@ async fn read_image(manager: State<'_, ClipboardManager>) -> Result<ReadImage> {
 
     let hash = hasher.finish();
 
-    let save_path = manager.save_image_path.join(format!("{hash}.png"));
+    let image_path = dir.join(format!("{hash}.png"));
 
-    if let Some(path) = save_path.to_str() {
+    if let Some(path) = image_path.to_str() {
         image.save_to_path(path).unwrap();
 
         let image = path.to_string();
@@ -227,15 +227,7 @@ async fn write_text(manager: State<'_, ClipboardManager>, value: String) -> Resu
 pub fn init() -> TauriPlugin<Wry> {
     Builder::new("clipboard")
         .setup(move |app| {
-            let mut manager = ClipboardManager::new();
-
-            let app_data_dir = app.path_resolver().app_data_dir().unwrap();
-
-            manager.save_image_path = app_data_dir.join("images");
-
-            create_dir_all(&manager.save_image_path).unwrap();
-
-            app.manage(manager);
+            app.manage(ClipboardManager::new());
 
             Ok(())
         })

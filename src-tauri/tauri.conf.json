@@ -43,13 +43,14 @@
 			"process": {
 				"relaunch": true
 			},
+			"dialog": {
+				"ask": true,
+				"open": true
+			},
 			"window": {
 				"startDragging": true,
 				"setPosition": true,
 				"center": true
-			},
-			"dialog": {
-				"ask": true
 			}
 		},
 		"windows": [
@@ -78,36 +79,11 @@
 				"icons/128x128@2x.png",
 				"icons/icon.icns",
 				"icons/icon.ico"
-			],
-			"externalBin": ["bin/ocr"],
-			"windows": {
-				"digestAlgorithm": "sha256",
-				"wix": {
-					"language": "zh-CN"
-				},
-				"nsis": {
-					"languages": ["SimpChinese"]
-				}
-			},
-			"dmg": {
-				"appPosition": {
-					"x": 180,
-					"y": 170
-				},
-				"applicationFolderPosition": {
-					"x": 480,
-					"y": 170
-				},
-				"windowSize": {
-					"width": 660,
-					"height": 400
-				}
-			}
+			]
 		},
 		"systemTray": {
 			"iconPath": "assets/tray.png",
-			"iconAsTemplate": true,
-			"menuOnLeftClick": false
+			"iconAsTemplate": true
 		},
 		"updater": {
 			"active": true,

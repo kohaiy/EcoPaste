@@ -128,7 +128,7 @@ export const updateSQL = async (
 
 	await executeSQL(
 		`UPDATE ${tableName} SET ${setClause} WHERE id = ?;`,
-		values.concat(id),
+		values.concat(id!),
 	);
 };
 
@@ -159,4 +159,11 @@ export const deleteSQL = async (tableName: TableName, id?: number) => {
 			deleteImageFile(item);
 		}
 	}
+};
+
+/**
+ * 关闭数据库连接池
+ */
+export const closeDatabase = async () => {
+	await db.close();
 };
